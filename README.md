@@ -13,9 +13,9 @@ $ sbatch job_name.sh -A visualai
 ```
 
 ##### Common Issues:
-**When running a job, I get the error `sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified`.**
+1. When running a job, I get the error `sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified`.**
 
-It might be possible that you do not have permissions to run jobs in the VisualAI group. In order to do this, make sure you are subscribed to both the [beowulf](https://lists.cs.princeton.edu/mailman/listinfo/beowulf) and [visualai-cluster](https://lists.cs.princeton.edu/mailman/listinfo/visualai-cluster) listservs. Afterwards, email csstaff to be permissioned into the VisualAI group.
+  It might be possible that you do not have permissions to run jobs in the VisualAI group. In order to do this, make sure you are subscribed to both the [beowulf](https://lists.cs.princeton.edu/mailman/listinfo/beowulf) and [visualai-cluster](https://lists.cs.princeton.edu/mailman/listinfo/visualai-cluster) listservs. Afterwards, email csstaff to be permissioned into the VisualAI group.
 
 ## Setting up your Slurm environment
 In order to run jobs on Slurm, you need to set up a script such that adequate are resources are allocated by the Slurm scheduler to make your job runnable. For example, when I submit my jobs, I use the command
@@ -63,11 +63,21 @@ python test_network.py --deploy_net prototxts/deploy_clip_retrieval_rgb_iccv_rel
 
 The reason for two scripts is that the first script is called on the ionic head node (where your Terminal session is occurring), which tells the second script to run on a **visualai node**. This is important because some modules, like `caffe/1.00` are installed _only_ on the visualai nodes, and so the line `module load caffe/1.00` must run while executing on a visualai node. Note that the first script runs on the ionic head node, and the second script runs on a visualai node.
 
-This is how I currently run my jobs on the visualai nodes, though it is quite probable that this can be done more efficiently (i.e. by using interactive jobs, which I hope someone can update with information).
+This is how I currently run my jobs on the visualai nodes, though it is quite probable that this can be done more efficiently (e.g. interactive jobs).
 
 
 ## Interactive Jobs
-To be updated. I don't have knowledge on how this is done, but I feel that this would be very beneficial to know.
+Interactive jobs on Slurm allow you perform tasks directly on the visualai nodes through your Terminal session. An example command for starting an interactive session might look like:
+```sh
+$ salloc --gres=gpu:1 -c 2 --mem=10G -A visualai srun --pty $SHELL -l
+```
+After the `salloc` command, we can specify the same parameters by including them as options rather than in a setup script. The parameters for `salloc` look familiar, but latter part of the command can be broken down:
+ - `srun` is specified so that it can be omitted when writing commands during the interactive session. If `srun` were not added here, commands written in the interactive session would get executed on the access nodes rather than with the allocated resources.
+ - the `--pty` flag is important for getting something that behaves like a terminal.
+ - the `$SHELL` tells `srun` to request what's running behind the shell variable of that system (i.e. bash on the ionic nodes)
+ - `-l` prepends the task number to the lines of stdout
+
+Additional flags can be added by referencing the options for [`salloc`](https://slurm.schedmd.com/salloc.html) and [`srun`](https://slurm.schedmd.com/srun.html).
 
 ## Useful Slurm Commands
 A good basic tutorial for using Slurm commands is through [this guide](https://www.rc.fas.harvard.edu/resources/running-jobs/), and a good list of Slurm commands can be found [here](https://hpc.llnl.gov/banks-jobs/running-jobs/slurm-commands). Some of the convenient ones that I use:
@@ -78,6 +88,8 @@ A good basic tutorial for using Slurm commands is through [this guide](https://w
   - [`sbatch`](https://slurm.schedmd.com/sbatch.html): used to submit a batch script to the Slurm scheduler. See example use above
   - [`srun`](https://slurm.schedmd.com/srun.html): run a parallel job on cluster managed by Slurm
 
-## Open Questions
+## FAQ
 
-1. My project is using Caffe and is still running the line `caffe.set_device(device_id)`, where `device_id` is the addressable GPU number (and I have currently set to 0). Can this be removed now that SLURM automatically allocates the GPU? Alternatively, if my project requests 1 GPU from SLURM, does SLURM always allocate it with an ID of 0, and hence, my project is serendipitously working?
+1. How does the `CUDA_VISIBLE_DEVICES` environment variable now work with Slurm?
+
+  `CUDA_VISIBLE_DEVICES` is now set by Slurm's GRES plugin, depending on the number of CPUs allocated for the running job. If a job is run with the flag `--gres=gpu:2`, then the job will be run with `CUDA_VISIBLE_DEVICES=0,1`
